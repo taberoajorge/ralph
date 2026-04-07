@@ -1,0 +1,71 @@
+{
+  "project": "my-web-app",
+  "feature": "Migrate authentication from JWT to session-based auth",
+  "workingDirectory": "/absolute/path/to/my-web-app",
+  "branchName": "feature/session-auth-migration",
+  "userStories": [
+    {
+      "id": "auth-001",
+      "title": "Replace JWT token generation with session creation",
+      "description": "Replace the JWT signing logic in the login endpoint with express-session. On successful login, create a server-side session and set a secure httpOnly cookie instead of returning a JWT in the response body.",
+      "acceptanceCriteria": [
+        "POST /api/auth/login creates a server-side session on success",
+        "Response sets a secure httpOnly cookie instead of returning a JWT",
+        "Session contains userId, email, and role fields",
+        "Existing tests in tests/auth/login.test.ts pass after modifications",
+        "No JWT imports remain in src/controllers/auth.ts"
+      ],
+      "passes": false,
+      "blocked": false,
+      "notes": null,
+      "priority": 1
+    },
+    {
+      "id": "auth-002",
+      "title": "Replace JWT middleware with session middleware",
+      "description": "Replace the JWT verification middleware with a session-based authentication middleware. The new middleware should check for a valid session cookie, load the session from the store, and attach user data to req.user.",
+      "acceptanceCriteria": [
+        "New session middleware in src/middleware/session-auth.ts",
+        "Protected routes use session middleware instead of JWT middleware",
+        "req.user is populated from session data",
+        "401 returned when session is invalid or expired",
+        "All protected endpoint tests pass"
+      ],
+      "passes": false,
+      "blocked": false,
+      "notes": null,
+      "priority": 2
+    },
+    {
+      "id": "auth-003",
+      "title": "Add logout endpoint that destroys session",
+      "description": "Create a POST /api/auth/logout endpoint that destroys the server-side session and clears the session cookie from the client.",
+      "acceptanceCriteria": [
+        "POST /api/auth/logout destroys the session",
+        "Response clears the session cookie",
+        "Subsequent requests with the old cookie return 401",
+        "Test in tests/auth/logout.test.ts covers happy path and edge cases"
+      ],
+      "passes": false,
+      "blocked": false,
+      "notes": null,
+      "priority": 3
+    },
+    {
+      "id": "auth-004",
+      "title": "Remove all JWT dependencies",
+      "description": "Remove jsonwebtoken from package.json, delete the JWT utility module, and ensure no file imports or references JWT-related code.",
+      "acceptanceCriteria": [
+        "jsonwebtoken removed from package.json dependencies",
+        "src/utils/jwt.ts deleted",
+        "No remaining imports of jsonwebtoken or jwt utility",
+        "npm install succeeds without jsonwebtoken",
+        "Full test suite passes"
+      ],
+      "passes": false,
+      "blocked": false,
+      "notes": null,
+      "priority": 4
+    }
+  ]
+}

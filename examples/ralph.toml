@@ -1,0 +1,30 @@
+[project]
+workingDirectory = "/absolute/path/to/my-web-app"
+
+[prd]
+path = "prd.json"
+backup = "prd.json.bak"
+prompt = "prompt.md"
+guardrails = "guardrails.md"
+progress = "progress.txt"
+
+[test]
+command = "npm test"
+
+[services.legacy]
+name = "database"
+health = "http://localhost:5432"
+port = 5432
+optional = false
+maxStartWait = 15
+
+[services.new]
+name = "api-server"
+health = "http://localhost:3000/health"
+port = 3000
+start = "npm run dev"
+stop = "kill $(lsof -ti :3000) 2>/dev/null"
+workingDirectory = "/absolute/path/to/my-web-app"
+optional = false
+type = "process"
+maxStartWait = 30
