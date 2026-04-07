@@ -143,9 +143,9 @@ cd /path/to/project/ralph
 cd ~/personal/ralph
 cargo build --release
 
-./target/release/ralph --provider codex --model o4-mini --config /path/to/ralph.toml
+./target/release/ralph --provider codex --model gpt-5.4 --config /path/to/ralph.toml
 ./target/release/ralph --provider claude --model claude-sonnet-4-6
-./target/release/ralph --provider cursor --model claude-sonnet-4-6
+./target/release/ralph --provider cursor --model claude-4.6-opus-max-thinking
 ```
 
 ## Commands (All Providers)
@@ -188,9 +188,9 @@ touch .ralph-done     # Stop after current iteration
 | `MAX_RETRIES` | `5` | Retries per agent call |
 | `RATE_LIMIT_WAIT` | `120` | Rate limit wait (seconds) |
 | `GUTTER_THRESHOLD` | `3` | Failures before auto-block |
-| `CODEX_MODEL` | `o4-mini` | Codex model |
+| `CODEX_MODEL` | `gpt-5.4` | Codex model |
 | `CLAUDE_MODEL` | `claude-sonnet-4-6` | Claude model |
-| `CURSOR_MODEL` | `claude-sonnet-4-6` | Cursor model |
+| `CURSOR_MODEL` | `claude-4.6-opus-max-thinking` | Cursor model |
 | `GEMINI_MODEL` | `gemini-2.5-pro` | Gemini model |
 
 ## ralph.toml (Optional)
@@ -236,10 +236,10 @@ maxStartWait = 30
 
 | Provider | Command |
 |---|---|
-| Codex | `codex exec --dangerously-bypass-approvals-and-sandbox --model $M --json -C $DIR "$PROMPT"` |
-| Claude | `claude -p "$PROMPT" --model $M --output-format text --dangerously-skip-permissions` |
+| Codex | `codex exec --dangerously-bypass-approvals-and-sandbox -m $M -c model_reasoning_effort="high" --json -C $DIR -o $LAST_MSG "$PROMPT"` |
+| Claude | `claude -p "$PROMPT" --model $M --fallback-model sonnet --output-format text --dangerously-skip-permissions` |
 | Cursor | `agent -p --force --model $M --output-format stream-json --workspace $DIR --sandbox disabled --approve-mcps "$PROMPT"` |
-| Gemini | `gemini --yolo --model $M "$PROMPT"` |
+| Gemini | `gemini -p "$PROMPT" --yolo --model $M` |
 
 ## Switching Providers
 

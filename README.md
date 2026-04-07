@@ -33,6 +33,7 @@ Ralph comes in two forms:
 
 - **Shell scripts** (`scripts/`) — Battle-tested bash scripts, one per provider. Drop into any project and run immediately.
 - **Rust binary** (`src/`) — Unified binary with all providers, structured detection (loop, stall, failure memory), and async health checks.
+- **Agent skills** (`skills/`) — Ready-to-use skills for Claude Code and Cursor that teach them how to operate Ralph.
 
 ## Quick Start
 
@@ -70,9 +71,9 @@ cd ralph
 cargo build --release
 
 # Run
-./target/release/ralph --provider codex --model o4-mini --config ralph.toml
+./target/release/ralph --provider codex --model gpt-5.4 --config ralph.toml
 ./target/release/ralph --provider claude --model claude-sonnet-4-6
-./target/release/ralph --provider cursor --model claude-sonnet-4-6
+./target/release/ralph --provider cursor --model claude-4.6-opus-max-thinking
 ```
 
 ## Required Files
@@ -247,14 +248,14 @@ Use it with: `./ralph-codex.sh --config ralph.toml` or `ralph --config ralph.tom
 
 | Variable | Script | Default |
 |---|---|---|
-| `CODEX_MODEL` | ralph-codex.sh | `o4-mini` |
+| `CODEX_MODEL` | ralph-codex.sh | `gpt-5.4` |
 | `CODEX_REASONING` | ralph-codex.sh | `high` |
 | `CLAUDE_MODEL` | ralph-claude.sh | `claude-sonnet-4-6` |
 | `CLAUDE_FALLBACK_MODEL` | ralph-claude.sh | `sonnet` |
 | `MAX_TURNS` | ralph-claude.sh | `200` |
 | `MAX_BUDGET_USD` | ralph-claude.sh | (none) |
-| `CURSOR_MODEL` | ralph-cursor.sh | `claude-sonnet-4-6` |
-| `CURSOR_FALLBACK_MODEL` | ralph-cursor.sh | `sonnet` |
+| `CURSOR_MODEL` | ralph-cursor.sh | `claude-4.6-opus-max-thinking` |
+| `CURSOR_FALLBACK_MODEL` | ralph-cursor.sh | `claude-4.6-sonnet-medium-thinking` |
 | `GEMINI_MODEL` | ralph-gemini.sh | `gemini-2.5-pro` |
 
 ## Commands
@@ -274,9 +275,9 @@ All scripts support the same subcommands:
 For the Rust binary:
 
 ```bash
-ralph --provider codex --model o4-mini
+ralph --provider codex --model gpt-5.4
 ralph --provider claude --model claude-sonnet-4-6
-ralph --provider cursor --model claude-sonnet-4-6
+ralph --provider cursor --model claude-4.6-opus-max-thinking
 ralph status
 ralph watch
 ralph reset
@@ -314,38 +315,74 @@ touch .ralph-done     # Exits after current iteration completes
 
 ### OpenAI Codex (`ralph-codex.sh` / `--provider codex`)
 
+| Default model | `gpt-5.4` |
+|---|---|
+| CLI version | 0.118.0+ |
+
 ```bash
-codex exec --dangerously-bypass-approvals-and-sandbox \
-    --model "$MODEL" --json -C "$WORK_DIR" "$PROMPT"
+codex exec \
+    --dangerously-bypass-approvals-and-sandbox \
+    --model "gpt-5.4" \
+    -c model_reasoning_effort="high" \
+    --json \
+    -C "$WORK_DIR" \
+    -o "$LAST_MESSAGE_FILE" \
+    "$PROMPT"
 ```
 
-Requires: `codex` CLI installed, `codex login` or `OPENAI_API_KEY` set.
+Requires: `codex` CLI installed (`npm i -g @openai/codex`), `codex login` or `OPENAI_API_KEY` set.
 
 ### Claude Code (`ralph-claude.sh` / `--provider claude`)
 
+| Default model | `claude-sonnet-4-6` |
+|---|---|
+| Fallback model | `sonnet` |
+| CLI version | 2.1.0+ |
+
 ```bash
-claude -p "$PROMPT" --model "$MODEL" --output-format text \
+claude -p "$PROMPT" \
+    --model "claude-sonnet-4-6" \
+    --fallback-model "sonnet" \
+    --output-format text \
+    --max-turns 200 \
     --dangerously-skip-permissions
 ```
 
-Requires: `claude` CLI installed, authenticated.
+Requires: `claude` CLI installed (`npm i -g @anthropic-ai/claude-code`), authenticated.
 
 ### Cursor Agent (`ralph-cursor.sh` / `--provider cursor`)
 
+| Default model | `claude-4.6-opus-max-thinking` |
+|---|---|
+| Fallback model | `claude-4.6-sonnet-medium-thinking` |
+| CLI version | 2026.03+ |
+
 ```bash
-agent -p --force --model "$MODEL" --output-format stream-json \
-    --workspace "$WORK_DIR" --sandbox disabled --approve-mcps "$PROMPT"
+agent -p --force \
+    --model "claude-4.6-opus-max-thinking" \
+    --output-format stream-json \
+    --workspace "$WORK_DIR" \
+    --sandbox disabled \
+    --approve-mcps \
+    "$PROMPT"
 ```
 
-Requires: `agent` CLI installed, authenticated.
+Requires: `agent` CLI installed (bundled with Cursor), authenticated. Run `agent --list-models` to see available models.
 
 ### Google Gemini (`ralph-gemini.sh`)
 
+| Default model | `gemini-2.5-pro` |
+|---|---|
+| Fallback model | `gemini-2.5-flash` |
+| CLI version | 0.28.0+ |
+
 ```bash
-gemini --yolo --model "$MODEL" "$PROMPT"
+gemini -p "$PROMPT" \
+    --yolo \
+    --model "gemini-2.5-pro"
 ```
 
-Requires: `gemini` CLI installed, authenticated.
+Requires: `gemini` CLI installed (`npm i -g @anthropic-ai/gemini-cli`), `gemini auth login` or `GEMINI_API_KEY` set.
 
 ## Architecture (Rust)
 
@@ -426,6 +463,27 @@ nohup ./ralph-codex.sh > /dev/null 2>&1 &
 # Check status
 ./ralph-codex.sh status
 ```
+
+## Skills
+
+Ralph includes ready-to-use agent skills for Claude Code and Cursor. These teach the AI assistants how to set up, run, and troubleshoot Ralph sessions when you ask them to.
+
+```
+skills/
+├── claude/SKILL.md    # For Claude Code / Codex CLI
+└── cursor/SKILL.md    # For Cursor Agent
+```
+
+### Installation
+
+Symlink or copy the skill into your agent's skills directory:
+
+```bash
+ln -s ~/personal/ralph/skills/claude/SKILL.md ~/.codex/skills/ralph/SKILL.md
+ln -s ~/personal/ralph/skills/cursor/SKILL.md ~/.cursor/skills/ralph/SKILL.md
+```
+
+Once installed, you can ask your AI assistant things like "plan a ralph session for my project", "create a PRD for ralph", or "run ralph with codex" and it will know exactly what to do.
 
 ## Troubleshooting
 
