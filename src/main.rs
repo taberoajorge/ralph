@@ -25,8 +25,8 @@ struct Cli {
     #[arg(long, default_value = "codex")]
     provider: String,
 
-    #[arg(long, default_value = "gpt-5.4")]
-    model: String,
+    #[arg(long)]
+    model: Option<String>,
 
     #[arg(long, default_value = "high")]
     reasoning: String,
@@ -71,7 +71,14 @@ async fn main() -> Result<()> {
             return Ok(());
         }
         Some(Commands::Status) => {
-            run_status(&ralph_config, &cli.provider, &cli.model).await;
+            let provider_kind = providers::ProviderKind::from_str(&cli.provider);
+            let model_display = cli.model.clone().unwrap_or_else(|| {
+                provider_kind
+                    .as_ref()
+                    .map(|k| default_model_for(k).to_string())
+                    .unwrap_or_else(|| "unknown".to_string())
+            });
+            run_status(&ralph_config, &cli.provider, &model_display).await;
             return Ok(());
         }
         Some(Commands::Reset) => {
@@ -99,11 +106,17 @@ async fn main() -> Result<()> {
         ralph_config.prd_backup = ralph_config.prd_file.with_extension("json.bak");
     }
 
+    let model_for_log = cli.model.clone().unwrap_or_else(|| {
+        providers::ProviderKind::from_str(&cli.provider)
+            .map(|k| default_model_for(&k).to_string())
+            .unwrap_or_default()
+    });
+
     logger::log_session_header(
         ralph_config.max_iterations,
         ralph_config.poll_interval_secs,
         &cli.provider,
-        &cli.model,
+        &model_for_log,
     );
 
     println!("Project: {}", prd.project.blue());
@@ -135,18 +148,20 @@ async fn main() -> Result<()> {
     let provider_kind = providers::ProviderKind::from_str(&cli.provider)
         .ok_or_else(|| anyhow::anyhow!("Unknown provider: {}. Use: codex, claude, cursor", cli.provider))?;
 
+    let model = cli.model.unwrap_or_else(|| default_model_for(&provider_kind).to_string());
+
     match provider_kind {
         providers::ProviderKind::Codex => {
             let provider =
-                providers::codex::CodexProvider::new(cli.model.clone(), cli.reasoning.clone());
+                providers::codex::CodexProvider::new(model, cli.reasoning.clone());
             loop_engine::run(&ralph_config, &provider, shutdown_flag).await?;
         }
         providers::ProviderKind::Claude => {
-            let provider = providers::claude::ClaudeProvider::new(cli.model.clone());
+            let provider = providers::claude::ClaudeProvider::new(model);
             loop_engine::run(&ralph_config, &provider, shutdown_flag).await?;
         }
         providers::ProviderKind::Cursor => {
-            let provider = providers::cursor::CursorProvider::new(cli.model.clone());
+            let provider = providers::cursor::CursorProvider::new(model);
             loop_engine::run(&ralph_config, &provider, shutdown_flag).await?;
         }
     }
@@ -174,6 +189,14 @@ async fn run_watch(config: &config::RalphConfig) {
             .await;
     } else {
         logger::log_warning("No logs yet. Run Ralph first.");
+    }
+}
+
+fn default_model_for(provider: &providers::ProviderKind) -> &'static str {
+    match provider {
+        providers::ProviderKind::Codex => "gpt-5.4",
+        providers::ProviderKind::Claude => "claude-sonnet-4-6",
+        providers::ProviderKind::Cursor => "composer-2-fast",
     }
 }
 
